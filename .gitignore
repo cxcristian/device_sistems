@@ -1,0 +1,8 @@
+.venv/
+Lib/
+Scripts/
+__pycache__/
+*.pyc
+.python-version
+CACHEDIR.TAG
+pyvenv.cfg
