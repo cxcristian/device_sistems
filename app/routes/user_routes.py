@@ -1,52 +1,72 @@
 from fastapi import APIRouter, HTTPException, Query
-from app.schema.user_schema import UserCreate, UserOut
+from app.schema.user_schema import UserCreate, UserOut, UserUpdate, UserDelete
+from app.services import user_services as us
 
-router = APIRouter()
-
-users_db: list[dict] = [
-    {"id": 1, "name": "Alice", "email": "alice@example.com", "role": "admin", "is_active": True},
-    {"id": 2, "name": "Bob", "email": "bob@example.com", "role": "user", "is_active": True},
-    {"id": 3, "name": "Charlie", "email": "charlie@example.com", "role": "support", "is_active": False},
-    {"id": 4, "name": "Diana", "email": "diana@example.com", "role": "user", "is_active": True},
-    {"id": 5, "name": "Eve", "email": "eve@example.com", "role": "admin", "is_active": False},
-]
-next_id = 6
+router = APIRouter(tags=["users"])
 
 
-@router.get("/users", response_model=list[UserOut])
-def list_users(role: str | None = Query(None), is_active: bool | None =Query(None)):
-    result = users_db
-    if role:
-        result = [u for u in result if u ["role"] == role]
-    if is_active is not None: result = [u for u in result if u ["is_active"] == is_active]
-    return result
+@router.get(
+    "/users",
+    response_model=list[UserOut],
+    summary="Listar usuarios",
+    description="Obtiene todos los usuarios. Opcionalmente filtra por rol y estado activo.",
+    response_description="Lista de usuarios encontrados",
+)
+def list_users(role: str | None = Query(None), is_active: bool | None = Query(None)):
+    return us.get_users(role, is_active)
 
 
-@router.get("/users/{user_id}", response_model=UserOut)
+@router.get(
+    "/users/{user_id}",
+    response_model=UserOut,
+    summary="Obtener usuario por ID",
+    description="Busca un usuario por su ID único.",
+    response_description="Usuario encontrado",
+)
 def get_user(user_id: int):
-    for user in users_db:
-        if user["id"] == user_id:
-            return user
-    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return us.get_user_by_id(user_id)
 
-@router.post("/users", response_model=UserOut, status_code=201)
+
+@router.post(
+    "/users",
+    response_model=UserOut,
+    status_code=201,
+    summary="Crear usuario",
+    description="Crea un nuevo usuario con los datos proporcionados. El email debe ser único.",
+    response_description="Usuario creado exitosamente",
+)
 def create_user(user: UserCreate):
-    global next_id
+    return us.create_user(user)
 
-    
-    for existing in users_db:
-        if existing["email"] == user.email:
-            raise HTTPException(
-                status_code=400,
-                detail=f"El email {user.email} ya está registrado",
-            )
-    new_user = {
-        "id": next_id,
-        "name": user.name,
-        "email": user.email,
-        "role": user.role,
-        "is_active": user.is_active,
-    }
-    users_db.append(new_user)
-    next_id += 1
-    return new_user
+
+@router.put(
+    "/users/{user_id}",
+    response_model=UserOut,
+    summary="Actualizar usuario completo",
+    description="Reemplaza todos los datos de un usuario existente.",
+    response_description="Usuario actualizado exitosamente",
+)
+def update_user(user_id: int, user: UserCreate):
+    return us.update_user(user_id, user)
+
+
+@router.patch(
+    "/users/{user_id}",
+    response_model=UserOut,
+    summary="Actualizar usuario parcial",
+    description="Actualiza solo los campos enviados de un usuario existente.",
+    response_description="Usuario actualizado exitosamente",
+)
+def patch_user(user_id: int, user: UserUpdate):
+    return us.patch_user(user_id, user)
+
+
+@router.delete(
+    "/users/{user_id}",
+    response_model=UserDelete,
+    summary="Eliminar usuario",
+    description="Elimina un usuario del sistema por su ID.",
+    response_description="Usuario eliminado exitosamente",
+)
+def delete_user(user_id: int):
+    return us.delete_user(user_id)
