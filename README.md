@@ -46,6 +46,7 @@ Servidor en http://127.0.0.1:8000 — Swagger en http://127.0.0.1:8000/docs
 | 200 | OK | Respuestas exitosas de GET, PUT, PATCH y DELETE |
 | 201 | Created | Creación exitosa de un usuario (POST) |
 | 400 | Bad Request | Email duplicado al crear o actualizar |
+| 403 | Forbidden | API Key inválida o ausente (Depends) |
 | 404 | Not Found | Usuario no encontrado por ID |
 | 422 | Unprocessable Entity | Datos inválidos según validaciones de Pydantic |
 
@@ -55,6 +56,7 @@ Servidor en http://127.0.0.1:8000 — Swagger en http://127.0.0.1:8000/docs
 ```bash
 curl -X POST http://127.0.0.1:8000/users \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: Sena-CTMA-2024" \
   -d "{\"name\":\"Juan\",\"email\":\"juan@example.com\",\"role\":\"admin\",\"is_active\":true}"
 ```
 ```json
@@ -63,28 +65,29 @@ curl -X POST http://127.0.0.1:8000/users \
 
 ### GET — Listar todos
 ```bash
-curl http://127.0.0.1:8000/users
+curl -H "X-API-Key: Sena-CTMA-2024" http://127.0.0.1:8000/users
 ```
 
 ### GET — Filtrar por rol
 ```bash
-curl "http://127.0.0.1:8000/users?role=admin"
+curl -H "X-API-Key: Sena-CTMA-2024" "http://127.0.0.1:8000/users?role=admin"
 ```
 
 ### GET — Filtrar por activos
 ```bash
-curl "http://127.0.0.1:8000/users?is_active=true"
+curl -H "X-API-Key: Sena-CTMA-2024" "http://127.0.0.1:8000/users?is_active=true"
 ```
 
 ### GET — Por ID
 ```bash
-curl http://127.0.0.1:8000/users/1
+curl -H "X-API-Key: Sena-CTMA-2024" http://127.0.0.1:8000/users/1
 ```
 
 ### PUT — Actualizar usuario completo
 ```bash
 curl -X PUT http://127.0.0.1:8000/users/1 \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: Sena-CTMA-2024" \
   -d "{\"name\":\"Alice Updated\",\"email\":\"alice@example.com\",\"role\":\"admin\",\"is_active\":false}"
 ```
 ```json
@@ -95,6 +98,7 @@ curl -X PUT http://127.0.0.1:8000/users/1 \
 ```bash
 curl -X PATCH http://127.0.0.1:8000/users/1 \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: Sena-CTMA-2024" \
   -d "{\"name\":\"Alice Modificada\"}"
 ```
 ```json
@@ -103,46 +107,78 @@ curl -X PATCH http://127.0.0.1:8000/users/1 \
 
 ### DELETE — Eliminar usuario
 ```bash
-curl -X DELETE http://127.0.0.1:8000/users/1
+curl -X DELETE http://127.0.0.1:8000/users/1 \
+  -H "X-API-Key: Sena-CTMA-2024"
 ```
 ```json
 {"detail":"Usuario eliminado"}
 ```
 
-## Capturas de Swagger UI
-*Agregar aquí las capturas de pantalla de la documentación interactiva en /docs*
+## Dependency Injection con Depends()
 
-## Explicación del uso de Depends()
+`Depends()` es un mecanismo de **inyección de dependencias** de FastAPI. Permite extraer lógica reutilizable (validaciones, autenticación) fuera de los endpoints.
 
-`Depends()` es un mecanismo de **inyección de dependencias** de FastAPI. Permite extraer lógica reutilizable (validaciones, autenticación, conexiones a BD) fuera de los endpoints.
+### Implementación en el proyecto
 
-### Ejemplo conceptual
+Se implementaron dos dependencias en `app/dependencies/user_dependencies.py`:
 
 ```python
-from fastapi import Depends
+from fastapi import HTTPException, Header
+from app.services import user_services as us
+
+
+def get_user_or_404(user_id: int):
+    """Obtiene usuario por ID o lanza 404 si no existe."""
+    return us.get_user_by_id(user_id)
+
 
 def verify_api_key(x_api_key: str = Header(...)):
-    if x_api_key != "secret-key":
-        raise HTTPException(403, detail="Acceso denegado")
+    """Valida API Key en el header X-API-Key."""
+    if x_api_key != "Sena-CTMA-2024":
+        raise HTTPException(403, detail="API Key inválida. Use 'Sena-CTMA-2024'")
     return x_api_key
-
-@router.get("/users")
-def list_users(
-    api_key: str = Depends(verify_api_key),  # ← se ejecuta antes del endpoint
-    role: str | None = Query(None),
-):
-    return us.get_users(role, None)
 ```
 
-FastAPI ejecuta `verify_api_key()` automáticamente antes de entrar al endpoint. Si la función lanza una excepción, el endpoint nunca se ejecuta. Si retorna un valor, ese valor se inyecta en el parámetro `api_key`.
+### ¿Cómo se usan?
+
+**`verify_api_key`** se aplica a nivel de **router** — todos los endpoints la ejecutan automáticamente:
+
+```python
+router = APIRouter(tags=["users"], dependencies=[Depends(verify_api_key)])
+```
+
+**`get_user_or_404`** se aplica a nivel de **endpoint** — inyecta el resultado directamente:
+
+```python
+@router.get("/users/{user_id}")
+def get_user(user: dict = Depends(get_user_or_404)):
+    return user  # ← ya recibes el dict del usuario, sin buscar manualmente
+```
+
+### Flujo de validación en cadena
+
+```
+Request → ¿Header X-API-Key?
+              │
+              ▼
+   1. verify_api_key (router)
+      ├─ ¿Falta el header?       → 422 (FastAPI)
+      ├─ ¿Key incorrecta?        → 403
+      └─ ¿Key correcta?          → pasa
+              │
+              ▼
+   2. get_user_or_404 (endpoint, solo en GET /users/{id})
+      ├─ ¿Usuario existe?        → inyecta el dict
+      └─ ¿No existe?             → 404
+              │
+              ▼
+   3. Ejecuta el endpoint
+```
 
 ### ¿Para qué sirve?
 - **Autenticación**: validar tokens o API keys antes de cada request
-- **Conexiones a BD**: obtener una sesión de base de datos
-- **Parámetros comunes**: agrupar query params que se repiten en varios endpoints
+- **Reutilización**: la misma dependencia se aplica a múltiples endpoints
 - **Testing**: se puede sobrescribir la dependencia fácilmente en pruebas
-
-En este proyecto no se implementó `Depends()` porque las validaciones son simples y directas, pero es la herramienta ideal para cuando la lógica crezca (ej: agregar autenticación JWT).
 
 ## Explicación del manejo de errores
 

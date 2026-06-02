@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from app.schema.user_schema import UserCreate, UserOut, UserUpdate, UserDelete
 from app.services import user_services as us
+from app.dependencies.user_dependencies import get_user_or_404, verify_api_key
 
-router = APIRouter(tags=["users"])
+router = APIRouter(tags=["users"], dependencies=[Depends(verify_api_key)])
 
 
 @router.get(
@@ -23,8 +24,8 @@ def list_users(role: str | None = Query(None), is_active: bool | None = Query(No
     description="Busca un usuario por su ID único.",
     response_description="Usuario encontrado",
 )
-def get_user(user_id: int):
-    return us.get_user_by_id(user_id)
+def get_user(user: dict = Depends(get_user_or_404)):
+    return user
 
 
 @router.post(
