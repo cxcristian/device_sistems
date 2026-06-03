@@ -7,6 +7,6 @@ def get_user_or_404(user_id: int):
 
 
 def verify_api_key(x_api_key: str = Header(...)):
-    if x_api_key != "Sena-CTMA-2024":
-        raise HTTPException(403, detail="API Key inválida. Usa 'Sena-CTMA-2024'")
+    if x_api_key != "contraseña":
+        raise HTTPException(403, detail="API Key inválida. Usa 'contraseña'")
     return x_api_key

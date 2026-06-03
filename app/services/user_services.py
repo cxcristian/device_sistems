@@ -50,16 +50,13 @@ def update_user(user_id: int, user: UserCreate):
     raise HTTPException(404, detail="usuario no encontrado")
 
 def patch_user(user_id: int, user: UserUpdate):
+    data = user.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(400, detail="Debe enviar al menos un campo para actualizar")
     for i, existing in enumerate(users_db):
         if existing["id"] == user_id:
-            if user.name is not None:
-                existing["name"] = user.name
-            if user.email is not None:
-                existing["email"] = user.email
-            if user.role is not None:
-                existing["role"] = user.role
-            if user.is_active is not None:
-                existing["is_active"] = user.is_active
+            for key, value in data.items():
+                existing[key] = value
             return existing
     raise HTTPException(404, detail="Usuario no encontrado")
 
