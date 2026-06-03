@@ -50,6 +50,30 @@ Servidor en http://127.0.0.1:8000 — Swagger en http://127.0.0.1:8000/docs
 | 404 | Not Found | Usuario no encontrado por ID |
 | 422 | Unprocessable Entity | Datos inválidos según validaciones de Pydantic |
 
+## Estructura del proyecto
+
+```
+device_systems/
+├── app/
+│   ├── main.py                            # Punto de entrada de FastAPI
+│   ├── data/users_db.py                   # Capa de datos (lista en memoria)
+│   ├── schema/user_schema.py              # Modelos Pydantic con validaciones
+│   ├── services/user_services.py          # Lógica de negocio y errores
+│   ├── dependencies/user_dependencies.py  # Dependency Injection (Depends)
+│   └── routes/user_routes.py              # Endpoints REST
+├── images/                                # Capturas de evidencia
+├── pyproject.toml                         # Dependencias del proyecto
+├── uv.lock                                # Versiones exactas de dependencias
+└── README.md
+```
+
+El proyecto sigue una arquitectura en capas:
+- **data/** → almacenamiento (hoy en memoria, fácil de migrar a BD real)
+- **schema/** → validación de datos de entrada/salida con Pydantic
+- **services/** → lógica de negocio (validaciones, búsquedas, etc.)
+- **dependencies/** → dependencias reutilizables con `Depends()`
+- **routes/** → endpoints que conectan requests con services
+
 ## Ejemplos de peticiones y respuestas
 
 ### POST — Crear usuario
@@ -113,6 +137,18 @@ curl -X DELETE http://127.0.0.1:8000/users/1 \
 ```json
 {"detail":"Usuario eliminado"}
 ```
+
+## Capturas de Swagger UI
+
+![Swagger UI](images/swagerUI.png)
+
+Documentación interactiva generada automáticamente por FastAPI en `/docs`. Permite probar cada endpoint directamente desde el navegador.
+
+## Capturas de ReDoc
+
+![ReDoc](images/redoc.png)
+
+Documentación alternativa generada por FastAPI en `/redoc`. Interfaz de solo lectura más limpia y estructurada.
 
 ## Dependency Injection con Depends()
 
@@ -225,12 +261,16 @@ Esta separación mantiene la lógica de negocio independiente de la capa HTTP, p
 | Captura | Descripción |
 |---------|-------------|
 | ![Ejecución del servidor](images/ejecucionComandoApi.png) | Servidor ejecutándose correctamente |
-| ![GET simple](images/getSimple.png) | GET /users — lista todos los usuarios |
+| ![GET simple](images/getUsers.png) | GET /users — lista todos los usuarios |
 | ![GET por ID](images/getPorId.png) | GET /users/1 — obtiene usuario por ID |
 | ![GET query role=admin](images/getAdminQuery.png) | GET /users?role=admin — filtra por rol |
 | ![GET is_active=true](images/getIsActiveTrue.png) | GET /users?is_active=true — filtra usuarios activos |
 | ![GET is_active=false](images/getIsActiveFalse.png) | GET /users?is_active=false — filtra usuarios inactivos |
 | ![POST exitoso](images/postExitoso.png) | POST /users — creación exitosa de usuario |
+| ![PUT datos a enviar](images/putPonerDatos.png) | PUT /users/1 — datos a enviar para actualizar |
+| ![PUT resultado](images/salidaPutPonerDatos.png) | PUT /users/1 — resultado de la actualización |
+| ![PATCH exitoso](images/patchExitoso.png) | PATCH /users/1 — actualización parcial |
+| ![DELETE exitoso](images/deleteExitoso.png) | DELETE /users/1 — usuario eliminado |
 
 ### Errores y validaciones
 | Captura | Descripción |
@@ -238,3 +278,17 @@ Esta separación mantiene la lógica de negocio independiente de la capa HTTP, p
 | ![POST nombre corto](images/postConNombreCorto.png) | POST /users — validación: nombre demasiado corto (< 3 caracteres) |
 | ![POST sin correo](images/postSinCorreoElectronico.png) | POST /users — validación: correo electrónico inválido o vacío |
 | ![POST correo repetido](images/postCorreoRepetido.png) | POST /users — error 400: email ya registrado |
+| ![GET inexistente](images/getInexistente.png) | GET /users/999 — error 404: usuario no encontrado |
+| ![PUT inexistente](images/putInexistente.png) | PUT /users/999 — error 404: usuario no encontrado |
+| ![DELETE inexistente](images/deleteInexistente.png) | DELETE /users/999 — error 404: usuario no encontrado |
+| ![PATCH vacío](images/patchVacio.png) | PATCH /users/1 con {} — error 400: debe enviar al menos un campo |
+| ![Sin API Key](images/getSinHeader.png) | GET /users sin header X-API-Key — error 422 |
+| ![API Key incorrecta](images/getKeyIncorrecta.png) | GET /users con API Key falsa — error 403 |
+
+---
+
+## Reflexión final
+
+A lo largo de este proyecto se evolucionó desde una API básica con pocos endpoints hasta una API REST completa con separación de responsabilidades en capas (data, schema, services, dependencies, routes). Se implementó el CRUD completo del recurso users (GET, POST, PUT, PATCH, DELETE) con validaciones automáticas mediante Pydantic v2, manejo de errores HTTP con respuestas claras, y autenticación simulada mediante Dependency Injection con `Depends()`.
+
+La documentación interactiva se generó automáticamente con Swagger UI y ReDoc, permitiendo probar y visualizar cada endpoint sin configuración adicional. La separación en capas facilita el mantenimiento, testing, y futuras migraciones (por ejemplo, de una lista en memoria a una base de datos real).
