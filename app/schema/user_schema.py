@@ -10,6 +10,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
+   
     pass
 
 class UserUpdate(UserBase):
@@ -28,3 +29,5 @@ class UserOut(BaseModel):
     email: str
     role: str
     is_active: bool
+    class Config:
+        from_attributes = True

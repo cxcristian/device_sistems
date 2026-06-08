@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from app.routes.user_routes import router as ur
+from app.database import create_tables
+
+create_tables()
 
 app = FastAPI(
     title="Device Systems API",

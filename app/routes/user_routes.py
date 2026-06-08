@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from app.schema.user_schema import UserCreate, UserOut, UserUpdate, UserDelete
 from app.services import user_services as us
 from app.dependencies.user_dependencies import get_user_or_404, verify_api_key
+from sqlalchemy.orm import Session
+from app.database import get_db
 
 router = APIRouter(tags=["users"], dependencies=[Depends(verify_api_key)])
 
@@ -13,8 +15,8 @@ router = APIRouter(tags=["users"], dependencies=[Depends(verify_api_key)])
     description="Obtiene todos los usuarios. Opcionalmente filtra por rol y estado activo.",
     response_description="Lista de usuarios encontrados",
 )
-def list_users(role: str | None = Query(None), is_active: bool | None = Query(None)):
-    return us.get_users(role, is_active)
+def list_users(db: Session = Depends(get_db), role: str | None = Query(None), is_active: bool | None = Query(None)):
+    return us.get_users(db,role, is_active)
 
 
 @router.get(
@@ -36,9 +38,8 @@ def get_user(user: dict = Depends(get_user_or_404)):
     description="Crea un nuevo usuario con los datos proporcionados. El email debe ser único.",
     response_description="Usuario creado exitosamente",
 )
-def create_user(user: UserCreate):
-    return us.create_user(user)
-
+def create_user(user: UserCreate, db: Session = Depends(get_db) ):
+    return us.create_user(db, user)
 
 @router.put(
     "/users/{user_id}",
@@ -47,8 +48,8 @@ def create_user(user: UserCreate):
     description="Reemplaza todos los datos de un usuario existente.",
     response_description="Usuario actualizado exitosamente",
 )
-def update_user(user_id: int, user: UserCreate):
-    return us.update_user(user_id, user)
+def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db)):
+    return us.update_user(db ,user_id, user)
 
 
 @router.patch(
@@ -58,8 +59,8 @@ def update_user(user_id: int, user: UserCreate):
     description="Actualiza solo los campos enviados de un usuario existente.",
     response_description="Usuario actualizado exitosamente",
 )
-def patch_user(user_id: int, user: UserUpdate):
-    return us.patch_user(user_id, user)
+def patch_user(user_id: int, user: UserUpdate ,db: Session = Depends(get_db), ):
+    return us.patch_user(db, user_id, user)
 
 
 @router.delete(
@@ -69,5 +70,5 @@ def patch_user(user_id: int, user: UserUpdate):
     description="Elimina un usuario del sistema por su ID.",
     response_description="Usuario eliminado exitosamente",
 )
-def delete_user(user_id: int):
-    return us.delete_user(user_id)
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    return us.delete_user(db, user_id)
