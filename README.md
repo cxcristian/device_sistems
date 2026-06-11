@@ -1,27 +1,25 @@
 # Device Systems API
 
 ## Descripción de la aplicación
-API REST para gestión de usuarios construida con **FastAPI** y **Pydantic v2**.
-Permite crear, listar, filtrar, actualizar y eliminar usuarios con validación automática de datos y documentación interactiva.
+API REST para gestión de usuarios construida con **FastAPI**, **SQLAlchemy** y **Pydantic v2**.
+Permite crear, listar, filtrar, actualizar y eliminar usuarios con validación automática de datos, persistencia en SQLite y documentación interactiva.
 
 ## Tecnologías utilizadas
 - **Python 3.10+**
 - **FastAPI** — Framework web para construir APIs
 - **Pydantic v2** — Validación de datos con `EmailStr` y `Field`
+- **SQLAlchemy** — ORM para la base de datos SQLite
 - **Uvicorn** — Servidor ASGI para ejecutar la aplicación
 - **uv** — Gestor de dependencias y entornos virtuales
 
 ## Instalación de dependencias
 
 ```bash
-# Inicializar el proyecto
-uv init
-
-# Agregar dependencias
-uv add fastapi uvicorn pydantic[email]
-
-# Sincronizar dependencias
+# Opción 1 — con uv (recomendado)
 uv sync
+
+# Opción 2 — con pip y requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Ejecución del servidor
@@ -45,8 +43,8 @@ Servidor en http://127.0.0.1:8000 — Swagger en http://127.0.0.1:8000/docs
 |--------|-------------|---------------|
 | 200 | OK | Respuestas exitosas de GET, PUT, PATCH y DELETE |
 | 201 | Created | Creación exitosa de un usuario (POST) |
-| 400 | Bad Request | Email duplicado al crear o actualizar |
-| 403 | Forbidden | API Key inválida o ausente (Depends) |
+| 400 | Bad Request | Email duplicado o PATCH sin campos |
+| 403 | Forbidden | API Key inválida o ausente |
 | 404 | Not Found | Usuario no encontrado por ID |
 | 422 | Unprocessable Entity | Datos inválidos según validaciones de Pydantic |
 
@@ -56,21 +54,27 @@ Servidor en http://127.0.0.1:8000 — Swagger en http://127.0.0.1:8000/docs
 device_systems/
 ├── app/
 │   ├── main.py                            # Punto de entrada de FastAPI
-│   ├── data/users_db.py                   # Capa de datos (lista en memoria)
+│   ├── database/
+│   │   └── connection.py                  # Configuración SQLAlchemy y sesión
+│   ├── models/
+│   │   └── user_model.py                  # Modelo SQLAlchemy (User)
 │   ├── schema/user_schema.py              # Modelos Pydantic con validaciones
-│   ├── services/user_services.py          # Lógica de negocio y errores
+│   ├── services/user_services.py          # Lógica de negocio y acceso a BD
 │   ├── dependencies/user_dependencies.py  # Dependency Injection (Depends)
-│   └── routes/user_routes.py              # Endpoints REST
+│   └── routes/user_routes.py              # Endpoints REST con FastAPI
 ├── images/                                # Capturas de evidencia
 ├── pyproject.toml                         # Dependencias del proyecto
+├── requirements.txt                       # Dependencias para pip
 ├── uv.lock                                # Versiones exactas de dependencias
+├── device_systems.db                      # Base de datos SQLite (generada)
 └── README.md
 ```
 
 El proyecto sigue una arquitectura en capas:
-- **data/** → almacenamiento (hoy en memoria, fácil de migrar a BD real)
+- **database/** → conexión y sesión de SQLAlchemy con SQLite
+- **models/** → modelo ORM que mapea la tabla `users`
 - **schema/** → validación de datos de entrada/salida con Pydantic
-- **services/** → lógica de negocio (validaciones, búsquedas, etc.)
+- **services/** → lógica de negocio con operaciones CRUD contra la BD
 - **dependencies/** → dependencias reutilizables con `Depends()`
 - **routes/** → endpoints que conectan requests con services
 
@@ -80,38 +84,38 @@ El proyecto sigue una arquitectura en capas:
 ```bash
 curl -X POST http://127.0.0.1:8000/users \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: Sena-CTMA-2024" \
+  -H "X-API-Key: contraseña" \
   -d "{\"name\":\"Juan\",\"email\":\"juan@example.com\",\"role\":\"admin\",\"is_active\":true}"
 ```
 ```json
-{"id":6,"name":"Juan","email":"juan@example.com","role":"admin","is_active":true}
+{"id":1,"name":"Juan","email":"juan@example.com","role":"admin","is_active":true}
 ```
 
 ### GET — Listar todos
 ```bash
-curl -H "X-API-Key: Sena-CTMA-2024" http://127.0.0.1:8000/users
+curl -H "X-API-Key: contraseña" http://127.0.0.1:8000/users
 ```
 
 ### GET — Filtrar por rol
 ```bash
-curl -H "X-API-Key: Sena-CTMA-2024" "http://127.0.0.1:8000/users?role=admin"
+curl -H "X-API-Key: contraseña" "http://127.0.0.1:8000/users?role=admin"
 ```
 
 ### GET — Filtrar por activos
 ```bash
-curl -H "X-API-Key: Sena-CTMA-2024" "http://127.0.0.1:8000/users?is_active=true"
+curl -H "X-API-Key: contraseña" "http://127.0.0.1:8000/users?is_active=true"
 ```
 
 ### GET — Por ID
 ```bash
-curl -H "X-API-Key: Sena-CTMA-2024" http://127.0.0.1:8000/users/1
+curl -H "X-API-Key: contraseña" http://127.0.0.1:8000/users/1
 ```
 
 ### PUT — Actualizar usuario completo
 ```bash
 curl -X PUT http://127.0.0.1:8000/users/1 \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: Sena-CTMA-2024" \
+  -H "X-API-Key: contraseña" \
   -d "{\"name\":\"Alice Updated\",\"email\":\"alice@example.com\",\"role\":\"admin\",\"is_active\":false}"
 ```
 ```json
@@ -122,7 +126,7 @@ curl -X PUT http://127.0.0.1:8000/users/1 \
 ```bash
 curl -X PATCH http://127.0.0.1:8000/users/1 \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: Sena-CTMA-2024" \
+  -H "X-API-Key: contraseña" \
   -d "{\"name\":\"Alice Modificada\"}"
 ```
 ```json
@@ -132,7 +136,7 @@ curl -X PATCH http://127.0.0.1:8000/users/1 \
 ### DELETE — Eliminar usuario
 ```bash
 curl -X DELETE http://127.0.0.1:8000/users/1 \
-  -H "X-API-Key: Sena-CTMA-2024"
+  -H "X-API-Key: contraseña"
 ```
 ```json
 {"detail":"Usuario eliminado"}
@@ -152,26 +156,28 @@ Documentación alternativa generada por FastAPI en `/redoc`. Interfaz de solo le
 
 ## Dependency Injection con Depends()
 
-`Depends()` es un mecanismo de **inyección de dependencias** de FastAPI. Permite extraer lógica reutilizable (validaciones, autenticación) fuera de los endpoints.
+`Depends()` es un mecanismo de **inyección de dependencias** de FastAPI. Permite extraer lógica reutilizable (validaciones, autenticación, recursos) fuera de los endpoints.
 
 ### Implementación en el proyecto
 
 Se implementaron dos dependencias en `app/dependencies/user_dependencies.py`:
 
 ```python
-from fastapi import HTTPException, Header
+from fastapi import HTTPException, Header, Depends
+from sqlalchemy.orm import Session
 from app.services import user_services as us
+from app.database import get_db
 
 
-def get_user_or_404(user_id: int):
+def get_user_or_404(user_id: int, db: Session = Depends(get_db)):
     """Obtiene usuario por ID o lanza 404 si no existe."""
-    return us.get_user_by_id(user_id)
+    return us.get_user_by_id(db, user_id)
 
 
 def verify_api_key(x_api_key: str = Header(...)):
     """Valida API Key en el header X-API-Key."""
-    if x_api_key != "Sena-CTMA-2024":
-        raise HTTPException(403, detail="API Key inválida. Use 'Sena-CTMA-2024'")
+    if x_api_key != "contraseña":
+        raise HTTPException(403, detail="API Key inválida. Usa 'contraseña'")
     return x_api_key
 ```
 
@@ -183,12 +189,12 @@ def verify_api_key(x_api_key: str = Header(...)):
 router = APIRouter(tags=["users"], dependencies=[Depends(verify_api_key)])
 ```
 
-**`get_user_or_404`** se aplica a nivel de **endpoint** — inyecta el resultado directamente:
+**`get_user_or_404`** se aplica a nivel de **endpoint** — inyecta el resultado directamente. A su vez, `get_user_or_404` también usa `Depends(get_db)`, formando un **árbol de dependencias** que FastAPI resuelve automáticamente:
 
 ```python
 @router.get("/users/{user_id}")
 def get_user(user: dict = Depends(get_user_or_404)):
-    return user  # ← ya recibes el dict del usuario, sin buscar manualmente
+    return user  # ← ya recibes el objeto User, sin buscar manualmente
 ```
 
 ### Flujo de validación en cadena
@@ -204,17 +210,19 @@ Request → ¿Header X-API-Key?
               │
               ▼
    2. get_user_or_404 (endpoint, solo en GET /users/{id})
-      ├─ ¿Usuario existe?        → inyecta el dict
+      ├─ Ejecuta get_db()        → abre sesión SQLAlchemy
+      ├─ ¿Usuario existe?        → inyecta el objeto User
       └─ ¿No existe?             → 404
               │
               ▼
-   3. Ejecuta el endpoint
+   3. Ejecuta el endpoint — cierra sesión automáticamente
 ```
 
 ### ¿Para qué sirve?
 - **Autenticación**: validar tokens o API keys antes de cada request
+- **Recursos**: inyectar sesiones de BD, clientes HTTP, etc.
 - **Reutilización**: la misma dependencia se aplica a múltiples endpoints
-- **Testing**: se puede sobrescribir la dependencia fácilmente en pruebas
+- **Testing**: se puede sobrescribir la dependencia fácilmente en pruebas con `app.dependency_overrides`
 
 ## Explicación del manejo de errores
 
@@ -231,27 +239,36 @@ class UserBase(BaseModel):
 ```
 
 ### 2. Errores de negocio (400, 404 — HTTPException)
-Los errores relacionados con la lógica de la aplicación se lanzan manualmente desde `services/user_services.py` usando `HTTPException`:
+Los errores relacionados con la lógica de la aplicación se lanzan manualmente desde `services/user_services.py` usando `HTTPException`. Las consultas se realizan con SQLAlchemy sobre la base de datos SQLite:
 
 ```python
 # services/user_services.py
 
-def get_user_by_id(user_id: int):
-    for user in users_db:
-        if user["id"] == user_id:
-            return user
-    raise HTTPException(404, detail="Usuario no encontrado")
+def get_user_by_id(db: Session, user_id: int):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return user
 
-def create_user(user: UserCreate):
-    for existing in users_db:
-        if existing["email"] == user.email:
-            raise HTTPException(400, detail=f"El email {user.email} ya está registrado")
+def create_user(db: Session, user: UserCreate):
+    existing = db.query(User).filter(User.email == user.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El email {user.email} ya está registrado",
+        )
+    new_user = User(name=user.name, email=user.email, ...)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
 ```
 
 | Excepción | Causa |
 |-----------|-------|
 | 404 | El ID solicitado no existe en la base de datos |
 | 400 | El email del nuevo usuario ya está registrado |
+| 400 | PATCH sin campos para actualizar |
 
 Esta separación mantiene la lógica de negocio independiente de la capa HTTP, permitiendo que los servicios puedan reutilizarse en otros contextos (CLI, tests, etc.).
 
@@ -289,6 +306,6 @@ Esta separación mantiene la lógica de negocio independiente de la capa HTTP, p
 
 ## Reflexión final
 
-A lo largo de este proyecto se evolucionó desde una API básica con pocos endpoints hasta una API REST completa con separación de responsabilidades en capas (data, schema, services, dependencies, routes). Se implementó el CRUD completo del recurso users (GET, POST, PUT, PATCH, DELETE) con validaciones automáticas mediante Pydantic v2, manejo de errores HTTP con respuestas claras, y autenticación simulada mediante Dependency Injection con `Depends()`.
+A lo largo de este proyecto se evolucionó desde una API básica con datos en memoria hasta una API REST completa con persistencia en **SQLite** mediante **SQLAlchemy**. El proyecto cuenta con separación de responsabilidades en capas (database, models, schema, services, dependencies, routes). Se implementó el CRUD completo del recurso users (GET, POST, PUT, PATCH, DELETE) con validaciones automáticas mediante Pydantic v2, manejo de errores HTTP con respuestas claras, y autenticación simulada mediante Dependency Injection con `Depends()`.
 
-La documentación interactiva se generó automáticamente con Swagger UI y ReDoc, permitiendo probar y visualizar cada endpoint sin configuración adicional. La separación en capas facilita el mantenimiento, testing, y futuras migraciones (por ejemplo, de una lista en memoria a una base de datos real).
+La documentación interactiva se generó automáticamente con Swagger UI y ReDoc, permitiendo probar y visualizar cada endpoint sin configuración adicional. La arquitectura en capas facilita el mantenimiento, testing, y futuras migraciones a otros motores de base de datos.
