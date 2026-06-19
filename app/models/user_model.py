@@ -9,3 +9,5 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     role = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+    #relationships
+    loans = relationship("Loan", back_populates="user")
