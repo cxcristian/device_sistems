@@ -10,5 +10,6 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     role = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+    hashed_password = Column(String, nullable=False, server_default='')
     #relationships
     loans = relationship("Loan", back_populates="user")

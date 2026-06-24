@@ -2,7 +2,9 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.schemas.user_schema import UserCreate, UserUpdate
 from app.models.user_model import User
+from passlib.context import CryptContext
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_users(db: Session, role=None, is_active=None):
     query = db.query(User)
@@ -32,6 +34,7 @@ def create_user(db: Session, user: UserCreate):
         email=user.email,
         role=user.role,
         is_active=user.is_active,
+        hashed_password=pwd_context.hash(user.password)
     )
     db.add(new_user)
     db.commit()
@@ -47,6 +50,7 @@ def update_user(db: Session, user_id: int, user: UserCreate):
     db_user.email = user.email
     db_user.role = user.role
     db_user.is_active = user.is_active
+    db_user.hashed_password = pwd_context.hash(user.password)
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -61,7 +65,10 @@ def patch_user(db: Session, user_id: int, user: UserUpdate):
     if not data:
         raise HTTPException(400, detail="Debe enviar al menos un campo para actualizar")
     for key, value in data.items():
-        setattr(db_user, key, value)
+         if key == "password":
+            value = pwd_context.hash(value)
+            key = "hashed_password"
+    setattr(db_user, key, value)
     db.commit()
     db.refresh(db_user)
     return db_user
