@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr,
+from pydantic import BaseModel, Field, EmailStr
 from typing import Literal, Optional
 
 class UserBase(BaseModel):
