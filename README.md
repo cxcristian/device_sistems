@@ -494,4 +494,4 @@ En conjunto, estas medidas forman una estrategia de defensa en profundidad donde
 
 ## Link YouTube
 
-*(Pendiente — video próximamente)*
+[Ver video en YouTube](https://youtu.be/K4_wzxPOIMg)
