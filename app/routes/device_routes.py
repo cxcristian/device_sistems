@@ -1,14 +1,19 @@
 from fastapi import APIRouter, Query, Depends
 from app.schemas.device_schema import DeviceCreate, DeviceUpdate, DeviceResponse
 from app.services import device_service as ds
+from app.dependencies.auth_dependency import (
+    get_current_active_user,
+    require_admin,
+    require_admin_or_support,)  
 from app.dependencies.user_dependencies import verify_api_key
 from sqlalchemy.orm import Session
 from app.database import get_db
+from app.models.user_model import User
 
 router = APIRouter(
     prefix="/devices",
     tags=["Devices"],
-    dependencies=[Depends(verify_api_key)],
+    dependencies=[Depends(get_current_active_user), Depends(verify_api_key)],
 )
 
 
@@ -48,7 +53,7 @@ def get_device(device_id: int, db: Session = Depends(get_db)):
     description="Crea un nuevo dispositivo. El número de serie debe ser único.",
     response_description="Dispositivo creado exitosamente",
 )
-def create_device(device: DeviceCreate, db: Session = Depends(get_db)):
+def create_device(device: DeviceCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_support)):
     return ds.create_device(db, device)
 
 
@@ -59,7 +64,7 @@ def create_device(device: DeviceCreate, db: Session = Depends(get_db)):
     description="Reemplaza todos los datos de un dispositivo existente.",
     response_description="Dispositivo actualizado exitosamente",
 )
-def update_device(device_id: int, device: DeviceCreate, db: Session = Depends(get_db)):
+def update_device(device_id: int, device: DeviceCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_support)):
     return ds.update_device(db, device_id, device)
 
 
@@ -70,7 +75,7 @@ def update_device(device_id: int, device: DeviceCreate, db: Session = Depends(ge
     description="Actualiza solo los campos enviados de un dispositivo existente.",
     response_description="Dispositivo actualizado exitosamente",
 )
-def patch_device(device_id: int, device: DeviceUpdate, db: Session = Depends(get_db)):
+def patch_device(device_id: int, device: DeviceUpdate, db: Session = Depends(get_db),current_user: User = Depends(require_admin_or_support)):
     return ds.patch_device(db, device_id, device)
 
 
@@ -81,5 +86,5 @@ def patch_device(device_id: int, device: DeviceUpdate, db: Session = Depends(get
     description="Elimina un dispositivo del sistema por su ID.",
     response_description="Dispositivo eliminado exitosamente",
 )
-def delete_device(device_id: int, db: Session = Depends(get_db)):
+def delete_device(device_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     ds.delete_device(db, device_id)

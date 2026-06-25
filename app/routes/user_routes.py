@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from app.schemas.user_schema import UserCreate, UserOut, UserUpdate, UserDelete
 from app.services import user_services as us
 from app.dependencies.user_dependencies import get_user_or_404, verify_api_key
 from sqlalchemy.orm import Session
 from app.database import get_db
-
-router = APIRouter(tags=["users"], dependencies=[Depends(verify_api_key)])
+from app.dependencies.auth_dependency import get_current_active_user
+from app.dependencies.rate_limit import limiter
+router = APIRouter(tags=["users"], dependencies=[Depends(get_current_active_user), Depends(verify_api_key)])
 
 
 @router.get(
@@ -15,7 +16,8 @@ router = APIRouter(tags=["users"], dependencies=[Depends(verify_api_key)])
     description="Obtiene todos los usuarios. Opcionalmente filtra por rol y estado activo.",
     response_description="Lista de usuarios encontrados",
 )
-def list_users(db: Session = Depends(get_db), role: str | None = Query(None), is_active: bool | None = Query(None)):
+@limiter.limit("30/minute")
+def list_users(request: Request, db: Session = Depends(get_db), role: str | None = Query(None), is_active: bool | None = Query(None)):
     return us.get_users(db,role, is_active)
 
 

@@ -302,6 +302,21 @@ Request → ¿Header X-API-Key?
    3. Ejecuta el endpoint — cierra sesión automáticamente
 ```
 
+## CORS — Cross-Origin Resource Sharing
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+### ¿Por qué no se recomienda `["*"]` con credenciales?
+La especificación CORS exige orígenes explícitos cuando `allow_credentials=True`. Usar `*` permite a cualquier sitio consumir la API, anulando la seguridad. Además, los navegadores bloquean la respuesta si hay credenciales y el origen es `*`.
+
 ## Manejo de errores
 
 El proyecto maneja errores en dos capas:
