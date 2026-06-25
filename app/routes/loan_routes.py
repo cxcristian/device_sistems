@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Depends, Request
+from fastapi import APIRouter, Query, Depends, Request, Security
 from app.schemas.loan_schema import (
     LoanCreate,
     LoanResponse,
@@ -8,11 +8,11 @@ from app.services import loan_service as ls
 from app.dependencies.user_dependencies import verify_api_key
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.dependencies.auth_dependency import(get_current_active_user, require_admin, require_admin_or_support)
+from app.dependencies.auth_dependency import(security, get_current_active_user, require_admin, require_admin_or_support)
 from app.dependencies.rate_limit import limiter
 from app.models.user_model import User
 
-router = APIRouter(tags=["Loans"], dependencies=[Depends(verify_api_key), Depends(get_current_active_user)])
+router = APIRouter(tags=["Loans"], dependencies=[Security(security), Depends(verify_api_key), Depends(get_current_active_user)])
 
 
 @router.get(

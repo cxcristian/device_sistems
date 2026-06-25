@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, Depends, Security
 from app.schemas.device_schema import DeviceCreate, DeviceUpdate, DeviceResponse
 from app.services import device_service as ds
 from app.dependencies.auth_dependency import (
+    security,
     get_current_active_user,
     require_admin,
     require_admin_or_support,)  
@@ -13,7 +14,7 @@ from app.models.user_model import User
 router = APIRouter(
     prefix="/devices",
     tags=["Devices"],
-    dependencies=[Depends(get_current_active_user), Depends(verify_api_key)],
+    dependencies=[Security(security), Depends(get_current_active_user), Depends(verify_api_key)],
 )
 
 

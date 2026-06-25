@@ -1,12 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query, Depends, Request
+from fastapi import APIRouter, HTTPException, Query, Depends, Request, Security
 from app.schemas.user_schema import UserCreate, UserOut, UserUpdate, UserDelete
 from app.services import user_services as us
 from app.dependencies.user_dependencies import get_user_or_404, verify_api_key
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.dependencies.auth_dependency import get_current_active_user
+from app.dependencies.auth_dependency import security, get_current_active_user
 from app.dependencies.rate_limit import limiter
-router = APIRouter(tags=["users"], dependencies=[Depends(get_current_active_user), Depends(verify_api_key)])
+router = APIRouter(tags=["users"], dependencies=[Security(security), Depends(get_current_active_user), Depends(verify_api_key)])
 
 
 @router.get(

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 SECRET_KEY = "GatoMiaMiua"
 ALGORITHM =  "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 5
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
